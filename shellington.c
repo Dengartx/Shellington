@@ -421,7 +421,6 @@ char * search_path(const char * file_name){
 	// is intended to traverse the existing shell path environment var
 	// $PATH to get the individual file path tokens to scan them all
 	char * env = getenv("PATH");
-	printf("%s\n", env);
 	// for the $PATH var the outputs delimiter is ":", for unix based devices
 	const char delim[2] = ":";
 	char * paths_env = strtok(env, delim);
@@ -446,7 +445,6 @@ char * search_path(const char * file_name){
 		strcpy(path, paths_env);
 		strcat(path, "/");
 		strcat(path, file_name);
-		printf("%s\n", env);
 
 		if(file_exists(path)){
 			return path;
