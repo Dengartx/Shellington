@@ -380,10 +380,9 @@ int process_command(struct command_t *command)
 		/// TODO: do your own exec with path resolving using execv()
 		
 		/// response to TODO: finds the absolute path of the file for the first input then gets the args for execv().
-		const char * file_path = search_path(command->args[0]);
+		char * file_path = search_path(command->args[0]);
 		if(file_path == NULL){
 			printf("-%s: %s: command not found\n", sysname, command->name);
-			return UNKNOWN;
 		}
 		execv(file_path, command->args);
 		exit(0);
@@ -447,6 +446,7 @@ char * search_path(const char * file_name){
 		strcpy(path, paths_env);
 		strcat(path, "/");
 		strcat(path, file_name);
+		printf("%s\n", env);
 
 		if(file_exists(path)){
 			return path;
@@ -454,7 +454,6 @@ char * search_path(const char * file_name){
 		paths_env = strtok(NULL, delim);
 		free(path);
 	}
-	env = NULL;
 	return NULL;
 }
 /// TODO: create new c files for each new custom command and in the end make a makefile to compile them together.
