@@ -300,8 +300,23 @@ int prompt(struct command_t *command)
   	return SUCCESS;
 }
 int process_command(struct command_t *command);
+
+// Added predefinitions for file_exists and search_path
+int file_exists(const char * file_name);
+char * search_path(const char * file_name);
+
+
 int main()
 {
+	// Added a little visual flair 
+	printf("░██████╗██╗░░██╗███████╗██╗░░░░░██╗░░░░░██╗███╗░░██╗░██████╗░████████╗░█████╗░███╗░░██╗\n");
+	printf("██╔════╝██║░░██║██╔════╝██║░░░░░██║░░░░░██║████╗░██║██╔════╝░╚══██╔══╝██╔══██╗████╗░██║\n");
+	printf("╚█████╗░███████║█████╗░░██║░░░░░██║░░░░░██║██╔██╗██║██║░░██╗░░░░██║░░░██║░░██║██╔██╗██║\n");
+	printf("░╚═══██╗██╔══██║██╔══╝░░██║░░░░░██║░░░░░██║██║╚████║██║░░╚██╗░░░██║░░░██║░░██║██║╚████║\n");
+	printf("██████╔╝██║░░██║███████╗███████╗███████╗██║██║░╚███║╚██████╔╝░░░██║░░░╚█████╔╝██║░╚███║\n");
+	printf("╚═════╝░╚═╝░░╚═╝╚══════╝╚══════╝╚══════╝╚═╝╚═╝░░╚══╝░╚═════╝░░░░╚═╝░░░░╚════╝░╚═╝░░╚══╝\n");
+	printf("A shell project by Furkan Özgültekin and Batu Altınok\n");
+
 	while (1)
 	{
 		struct command_t *command=malloc(sizeof(struct command_t));
@@ -364,9 +379,22 @@ int process_command(struct command_t *command)
 		// set args[arg_count-1] (last) to NULL
 		command->args[command->arg_count-1]=NULL;
 
+		/*
 		execvp(command->name, command->args); // exec+args+path
 		exit(0);
+		No Need for these lines after path resolving implementation
+		*/
 		/// TODO: do your own exec with path resolving using execv()
+		
+		/// response to TODO: finds the absolute path of the file for the first input then gets the args for execv().
+		const char * file_path = search_path(command->args[0]);
+		if(file_path == NULL){
+			printf("-%s: %s: command not found\n", sysname, command->name);
+			return UNKNOWN;
+		}
+		execv(file_path, command->args);
+		exit(0);
+		
 	}
 	else
 	{
@@ -380,3 +408,60 @@ int process_command(struct command_t *command)
 	printf("-%s: %s: command not found\n", sysname, command->name);
 	return UNKNOWN;
 }
+
+// Added code 
+int file_exists(const char * path_name){
+	// opens the path directory to read file path which if exists:
+	// 1. the pointer will not be null
+	// 2. under the condition of one will return true since path to file exists and is valid
+	FILE * fp;
+
+	if((fp = fopen(path_name, "r"))){
+		fclose(fp);
+		return 1;
+	}
+
+	return 0;
+
+
+}
+char * search_path(const char * file_name){
+	// is intended to traverse the existing shell path environment var
+	// $PATH to get the individual file path tokens to scan them all
+	char * env = getenv("PATH");
+	printf("%s\n", env);
+	// for the $PATH var the outputs delimiter is ":", for unix based devices
+	const char delim[2] = ":";
+	char * paths_env = strtok(env, delim);
+	
+
+	
+
+	//initializing the path array to check if the concatenation of the desired file_name to it exists
+	const int max_len = 30;
+	
+	
+
+	while(paths_env != NULL){
+		// Intention is to search for the path in a manner where $PATH[i]/path
+		// is an existing file meaning that it's the file at question to be executed
+		char * path = malloc(sizeof(paths_env) + max_len);
+		if(path == NULL){
+			//in case of a failed malloc
+			return NULL;	
+		}
+		path[max_len] = NULL;
+		strcpy(path, paths_env);
+		strcat(path, "/");
+		strcat(path, file_name);
+
+		if(file_exists(path)){
+			return path;
+		}
+		paths_env = strtok(NULL, delim);
+		free(path);
+	}
+	env = NULL;
+	return NULL;
+}
+/// TODO: create new c files for each new custom command and in the end make a makefile to compile them together.
