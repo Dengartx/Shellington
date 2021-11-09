@@ -6,6 +6,17 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+
+
+
+
+//For use in short function
+#define BUF_SIZE 450
+
+char w[BUF_SIZE];
+
+
+
 const char * sysname = "shellington";
 
 enum return_codes {
@@ -305,9 +316,14 @@ int process_command(struct command_t *command);
 int file_exists(const char * file_name);
 char * search_path(const char * file_name);
 
+const char * search_short(FILE * fp, const char * alias); // will return the alias token's corresponding file output
+void jump_to(const char * loc, struct command_t * command);
+int shortcut(struct command_t *command);
 
 int main()
 {
+	// Get the first working directory to W
+	getcwd(w,sizeof(w));
 	
 
 	while (1)
@@ -318,6 +334,7 @@ int main()
 		int code;
 		code = prompt(command);
 		if (code==EXIT) break;
+
 
 		code = process_command(command);
 		if (code==EXIT) break;
@@ -332,7 +349,14 @@ int main()
 int process_command(struct command_t *command)
 {
 	int r;
+
 	if (strcmp(command->name, "")==0) return SUCCESS;
+
+    if(strcmp(command->name, "short") == 0){
+        shortcut(command);
+		return SUCCESS;
+
+    }
 
 	if (strcmp(command->name, "exit")==0)
 		return EXIT;
@@ -401,7 +425,7 @@ int process_command(struct command_t *command)
 	return UNKNOWN;
 }
 
-// Added code 
+// Added code for using execv
 int file_exists(const char * path_name){
 	// opens the path directory to read file path which if exists:
 	// 1. the pointer will not be null
@@ -455,3 +479,117 @@ char * search_path(const char * file_name){
 	return NULL;
 }
 /// TODO: create new c files for each new custom command and in the end make a makefile to compile them together.
+
+
+// Added code for short function
+
+int shortcut(struct command_t * command){
+	const char * set_jump = command->args[0];
+    const char * alias = command->args[1];
+    const char pwd[BUF_SIZE];
+	getcwd(pwd,sizeof(pwd));
+
+    const char * delim = ":";
+
+	
+
+
+	char * filedir =malloc(strlen("shorttxt") + strlen(w));
+
+	strcat(filedir, w);
+	strcat(filedir, "/shorttxt");
+	
+	
+
+	FILE * fp = fopen(filedir, "a");
+        if(fp != NULL){
+            // if file exists then append it to the file's last line
+            if(strcmp(set_jump, "set") == 0){
+                // set command appends to the file the pwd
+                
+
+
+                char * token = malloc(sizeof(alias) + sizeof(pwd) + 2);
+                strcpy(token, alias);
+                strcat(token, delim);
+                strcat(token, pwd);
+
+                // write token to file and add a newline
+                fputs(token, fp);
+                fputs("\n", fp);
+                printf("%s set\n", token);   
+
+
+            } else if(strcmp(set_jump, "jump") == 0){
+                // jump function
+                FILE * fp2 = fopen(filedir, "r");
+                if(fp2 == NULL){
+                    perror("file couldn't be opened");
+                    return 1;
+                }
+                /// TODO: read the file to find the desired alias token and then its corresponding value is the directory execution shell will point to
+                const char * jumpdir = search_short(fp2, alias);
+                printf("%s\n", jumpdir);
+                fclose(fp2);
+                printf("jumping to %s\n", jumpdir);
+                jump_to(jumpdir, command);
+            }
+				free(filedir);
+				fclose(fp);
+				return 0;
+        }else{
+            perror("Could not open or create file");
+            return 1;
+        }
+	free(filedir);
+    fclose(fp);
+    return 0;
+
+
+}
+
+const char * search_short(FILE * fp, const char * alias){
+    char * line = malloc(BUF_SIZE);
+
+    while (fgets(line,BUF_SIZE,fp) != NULL){
+            printf("dirtoken %s\n", line);
+            // see if the corresponding token is the alias we're looking for
+            // constrained to alias:dir\n
+        	const char * aliasToken = strtok(line, ":");
+            const char * dirToken = strtok(NULL, "\n");
+            if(strcmp(alias, aliasToken) == 0){
+                return dirToken;
+            }
+
+
+    }
+ 
+
+
+
+    return "DNE";
+}
+    
+void jump_to(const char * loc, struct command_t * command){
+    /// TODO: jump to loc using system call cd6*
+
+    char* arg_list[] = { loc, NULL };
+    struct command_t * cdcomm = malloc(sizeof(struct command_t));
+	
+	cdcomm->args = malloc(sizeof(arg_list));
+	cdcomm->name = malloc(sizeof("cd"));
+
+	
+	strcpy(cdcomm->name ,"cd");
+	
+	cdcomm->args = arg_list;	
+	cdcomm->arg_count = 2;
+	cdcomm->background = command->background;
+	cdcomm->next = NULL;
+	
+	process_command(cdcomm);
+	
+	
+
+}
+        
