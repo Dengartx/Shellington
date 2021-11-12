@@ -11,7 +11,7 @@
 
 
 //For use in short function
-#define BUF_SIZE 450
+#define BUF_SIZE 250
 
 char w[BUF_SIZE];
 
@@ -320,6 +320,13 @@ const char * search_short(FILE * fp, const char * alias); // will return the ali
 void jump_to(const char * loc, struct command_t * command);
 int shortcut(struct command_t *command);
 
+void bookmark(struct command_t* command);
+void save(FILE* fp,char *argv,int save1);
+void library(FILE* fp);
+
+
+
+
 int main()
 {
 	// Get the first working directory to W
@@ -349,12 +356,54 @@ int main()
 int process_command(struct command_t *command)
 {
 	int r;
+	bool builtinComm = false;
 
 	if (strcmp(command->name, "")==0) return SUCCESS;
 
     if(strcmp(command->name, "short") == 0){
-        shortcut(command);
-		return SUCCESS;
+		// If you jump to a location and after that immediately trigger an blank success statement, 
+		// the cd reverts back to the location before jumping
+		builtinComm = true;
+		if(fork() == 0){
+        	shortcut(command);
+
+		}else{
+			if (!command->background)
+			wait(0); // wait for child process to finish
+			return SUCCESS;
+		}
+
+    }
+	if(strcmp(command->name, "bookmark") == 0){
+		builtinComm = true;
+		char * bookmark_comm_set;
+		
+					
+		if(strcmp(command->args[0],"-i") != 0 && strcmp(command->args[0],"-l") != 0 && strcmp(command->args[0],"-d") != 0){
+			// if a conventional command is not set then the command set is merged to a single command
+			bookmark_comm_set = malloc(sizeof(command->args) + 20);
+			
+			for(int i = 0; command->args[i] != NULL; i++){
+				if(i == 0){
+					strcat(bookmark_comm_set, "\"");
+				}
+				strcat(bookmark_comm_set, command->args[i]);
+				if(command->args[i+1] == NULL){
+					strcat(bookmark_comm_set, "\"");
+				}else{
+					strcat(bookmark_comm_set, " ");
+
+				}
+				command->args[i] = NULL;
+			}
+			free(command->args[0]);
+			command->args[0] = bookmark_comm_set;
+
+		}
+			bookmark(command);
+			return SUCCESS;
+		
+
 
     }
 
@@ -405,7 +454,7 @@ int process_command(struct command_t *command)
 		
 		/// response to TODO: finds the absolute path of the file for the first input then gets the args for execv().
 		char * file_path = search_path(command->args[0]);
-		if(file_path == NULL){
+		if(file_path == NULL && !builtinComm){
 			printf("-%s: %s: command not found\n", sysname, command->name);
 		}
 		execv(file_path, command->args);
@@ -529,11 +578,16 @@ int shortcut(struct command_t * command){
                 }
                 /// TODO: read the file to find the desired alias token and then its corresponding value is the directory execution shell will point to
                 const char * jumpdir = search_short(fp2, alias);
-                printf("%s\n", jumpdir);
                 fclose(fp2);
-                printf("jumping to %s\n", jumpdir);
-                jump_to(jumpdir, command);
-            }
+				if(strcmp(jumpdir, "DNE") != 0){
+	                jump_to(jumpdir, command);
+
+				}else{
+					printf("Invalid alias\n");
+				}
+            } else{
+				printf("Invalid Command\n");
+			}
 				free(filedir);
 				fclose(fp);
 				return 0;
@@ -552,7 +606,6 @@ const char * search_short(FILE * fp, const char * alias){
     char * line = malloc(BUF_SIZE);
 
     while (fgets(line,BUF_SIZE,fp) != NULL){
-            printf("dirtoken %s\n", line);
             // see if the corresponding token is the alias we're looking for
             // constrained to alias:dir\n
         	const char * aliasToken = strtok(line, ":");
@@ -592,4 +645,176 @@ void jump_to(const char * loc, struct command_t * command){
 	
 
 }
-        
+// Added code for bookmark func 
+void bookmark(struct command_t* command){
+
+FILE *fp;
+char single_line[BUF_SIZE];
+
+char *task = command->args[0];
+char *target = command->args[1];
+
+
+
+char filedir[strlen("bookmarktxt")+strlen(w)];
+strcpy(filedir, w);
+strcat(filedir,"/bookmarktxt");
+
+if(strcmp(task,"-l") == 0) {
+
+	fp = fopen(filedir,"r");
+	library(fp);
+	fclose(fp);
+	}
+
+
+
+else if(strcmp(task,"-d") == 0) {
+
+	char * filedir2 =malloc(strlen("bookmarktxt") + strlen(w));
+	
+	strcat(filedir2, w);
+	strcat(filedir2,"/bookmarktxt");
+
+	FILE* fp2 = fopen(filedir2,"w");
+
+	fp = fopen(filedir,"r");
+
+	delete(fp,fp2,target,filedir,filedir2);
+
+	fclose(fp);
+	fp = fp2;
+	remove(filedir);
+	rename(filedir2,filedir);
+	fclose(fp2);
+	free(filedir2);
+
+	}
+
+else if(strcmp(task,"-i") == 0) {
+
+		if(target!= NULL) {
+		fp = fopen(filedir,"r");
+
+		char sinle_line[1000];
+		while(fgets(single_line,1000,fp) != NULL) {
+
+			if(strncmp(single_line,target,1) == 0) {
+				char* tok = strtok(single_line," ");
+				tok = strtok(NULL,single_line);
+				printf("%s", tok);
+				tok = tok+1;
+				
+				struct command_t * comm_exec= malloc(sizeof(struct command_t));
+				
+				char * tokenized_name = strtok(tok, " ");
+				comm_exec->name = malloc(sizeof(tokenized_name));
+				comm_exec->name = tokenized_name;
+
+				char * tokenized_comms[BUF_SIZE]; 
+				
+				int i = 0;
+				tok = strtok(NULL, " ");
+				char tok_end = tok[strlen(tok)-2];
+ 
+				for(i; tok_end != '\0' && tok_end != '"'; i++){
+					
+
+					tokenized_comms[i] = tok;	
+
+					tok_end = tok[strlen(tok)-1];
+					if(tok_end == '"'){
+						tokenized_comms[i] = strtok(tok, "\"");
+						tok_end = tok[strlen(tok) - 2];
+						break;
+					}else{
+						tokenized_comms[i] = strtok(tok, " ");
+
+					}
+					
+					
+				}
+				if(tok_end == '"'){
+					tokenized_comms[i] = strtok(tok, "\"");
+					
+				}
+				
+				comm_exec->arg_count = i + 1;
+				
+				int j;
+				for(j = 0; j < comm_exec->arg_count; j++){
+					comm_exec->args = malloc(sizeof(comm_exec->args)+sizeof(tokenized_comms[j]));
+					comm_exec->args[j] = tokenized_comms[j];
+					
+
+				}
+				
+				comm_exec->background = command->background;
+				comm_exec->next = NULL;
+				
+				process_command(comm_exec);
+
+			}
+
+
+		}	
+
+	}
+
+}else{
+		int save1 = 1;
+		fp = fopen(filedir,"a+");
+		save(fp,task,save1);
+		fclose(fp);
+		}
+}
+
+
+void save(FILE* fp,char *argv,int save1)
+{
+	char single_line[1000];
+	int d = -1;
+	while(!feof(fp)) {
+
+	fgets(single_line,100,fp);
+	d++;
+	if(strncmp(&single_line[2],argv,strlen(argv))==0) {
+		save1 = 0;
+		break;
+		}
+
+	}
+	if(save1 == 1)
+	fprintf(fp,"%d %s\n",d,argv);
+	save1 = 1;
+
+}
+      
+void delete(FILE* fp,FILE* fp2,char* target,char* filedir,char* filedir2)
+{
+	char single_line[1000];
+
+	while(fgets(single_line,1000,fp)!=NULL){
+
+		if(strncmp(single_line,target,1) != 0) {
+			fprintf(fp2,"%s",single_line);
+
+			}
+
+		}
+}
+
+
+void library(FILE* fp)
+{
+
+	char single_line[1000];
+
+	while(fgets(single_line,1000,fp) != NULL) {
+
+
+		printf("%s",single_line);
+		}
+
+
+}
