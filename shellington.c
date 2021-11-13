@@ -847,9 +847,9 @@ void library(FILE *fp)
 
 /// New Custom command for a local ping sweep to check which local devices are up:
 
-int ping_sweep(const char *subnet, const char *range_start, const char *range_end)
-{
-	/// AUTHOR: Furkan Özgültekin
+int ping_sweep(const char *subnet, const char *range_start, const char *range_end) 
+{	
+	/// AUTHOR: Furkan Özgültekin 
 
 	int stat;
 
