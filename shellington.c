@@ -695,6 +695,10 @@ else if(strcmp(task,"-i") == 0) {
 
 		if(target!= NULL) {
 		fp = fopen(filedir,"r");
+		if(fp == NULL){
+			printf("No bookmarks exist\n");
+			return;
+		}
 
 		char sinle_line[1000];
 		while(fgets(single_line,1000,fp) != NULL) {
@@ -702,7 +706,6 @@ else if(strcmp(task,"-i") == 0) {
 			if(strncmp(single_line,target,1) == 0) {
 				char* tok = strtok(single_line," ");
 				tok = strtok(NULL,single_line);
-				printf("%s", tok);
 				tok = tok+1;
 				
 				struct command_t * comm_exec= malloc(sizeof(struct command_t));
