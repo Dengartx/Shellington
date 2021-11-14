@@ -691,6 +691,10 @@ void bookmark(struct command_t *command)
 	{
 
 		fp = fopen(filedir, "r");
+		if (fp == NULL){
+			printf("No bookmarks exist\n");
+			return;
+		}
 		library(fp);
 		fclose(fp);
 	}
@@ -704,8 +708,13 @@ void bookmark(struct command_t *command)
 		strcat(filedir2, "/bookmarktxt");
 
 		FILE *fp2 = fopen(filedir2, "w");
+		if (fp2 == NULL){
+			printf("No bookmarks exist\n");
+			return;
+		}
 
 		fp = fopen(filedir, "r");
+		
 
 		delete (fp, fp2, target, filedir, filedir2);
 
@@ -881,7 +890,8 @@ int ping_sweep(const char *subnet, const char *range_start, const char *range_en
 		// create child processes and then execute ping for the interval between start and end using for
 		for (i; i <= end; i++)
 		{
-
+			
+			// count is also the digit count of the said current_index so there is an if else statement to change it accordingly
 			int count = 1;
 			if (i >= 10)
 			{
@@ -907,7 +917,7 @@ int ping_sweep(const char *subnet, const char *range_start, const char *range_en
 			// each ping becomes a child process of their own
 			pid_t pid = fork();
 			if (pid == 0)
-			{
+			{ 
 				execv(file_path, args);
 			}
 			else
