@@ -324,6 +324,8 @@ void bookmark(struct command_t *command);
 void save(FILE *fp, char *argv, int save1);
 void library(FILE *fp);
 
+void remindme(struct command_t *command);
+
 int ping_sweep(const char *subnet_command, const char *start_command, const char *end_command);
 
 int main()
@@ -384,31 +386,56 @@ int process_command(struct command_t *command)
 		if (strcmp(command->args[0], "-i") != 0 && strcmp(command->args[0], "-l") != 0 && strcmp(command->args[0], "-d") != 0)
 		{
 			// if a conventional command is not set then the command set is merged to a single command
-			bookmark_comm_set = malloc(sizeof(command->args) + 20);
+			bookmark_comm_set = malloc(sizeof(command->args) + 30);
 
-			for (int i = 0; command->args[i] != NULL; i++)
+			for (int i = 0; i < command->arg_count; i++)
 			{
 				if (i == 0)
 				{
 					strcat(bookmark_comm_set, "\"");
 				}
+
 				strcat(bookmark_comm_set, command->args[i]);
-				if (command->args[i + 1] == NULL)
-				{
-					strcat(bookmark_comm_set, "\"");
-				}
-				else
+				if (i != command->arg_count - 1)
 				{
 					strcat(bookmark_comm_set, " ");
 				}
-				command->args[i] = NULL;
 			}
+			strcat(bookmark_comm_set, "\"");
+
 			free(command->args[0]);
 			command->args[0] = bookmark_comm_set;
 		}
-		bookmark(command);
+		if (fork() == 0)
+		{
+			bookmark(command);
+			exit(0);
+		}
+		else
+		{
+			if (!command->background)
+				wait(0); // wait for child process to finish
+			return SUCCESS;
+		}
 		return SUCCESS;
 	}
+
+	if (strcmp(command->name, "remindme") == 0)
+	{
+		if (fork() == 0)
+		{
+			remindme(command);
+			exit(0);
+		}
+		else
+		{
+			if (!command->background)
+				wait(0); // wait for child process to finish
+			return SUCCESS;
+		}
+		return SUCCESS;
+	}
+
 	if (strcmp(command->name, "pingsweep") == 0)
 	{
 		builtinComm = true;
@@ -691,7 +718,8 @@ void bookmark(struct command_t *command)
 	{
 
 		fp = fopen(filedir, "r");
-		if (fp == NULL){
+		if (fp == NULL)
+		{
 			printf("No bookmarks exist\n");
 			return;
 		}
@@ -708,13 +736,13 @@ void bookmark(struct command_t *command)
 		strcat(filedir2, "/bookmarktxt");
 
 		FILE *fp2 = fopen(filedir2, "w");
-		if (fp2 == NULL){
+		if (fp2 == NULL)
+		{
 			printf("No bookmarks exist\n");
 			return;
 		}
 
 		fp = fopen(filedir, "r");
-		
 
 		delete (fp, fp2, target, filedir, filedir2);
 
@@ -760,7 +788,7 @@ void bookmark(struct command_t *command)
 					tok = strtok(NULL, " ");
 					char tok_end = tok[strlen(tok) - 2];
 
-					for (i; tok_end != '\0' && tok_end != '"'; i++)
+					for (i; tok_end != '\0' && tok_end != '"' && tok_end != '\n'; i++)
 					{
 
 						tokenized_comms[i] = tok;
@@ -785,9 +813,11 @@ void bookmark(struct command_t *command)
 					comm_exec->arg_count = i + 1;
 
 					int j;
+					comm_exec->args = malloc(sizeof(comm_exec->args) + sizeof(tokenized_comms[j]));
+
 					for (j = 0; j < comm_exec->arg_count; j++)
 					{
-						comm_exec->args = malloc(sizeof(comm_exec->args) + sizeof(tokenized_comms[j]));
+						comm_exec->args = realloc(comm_exec->args, sizeof(comm_exec->args) + sizeof(tokenized_comms[j]));
 						comm_exec->args[j] = tokenized_comms[j];
 					}
 
@@ -853,12 +883,60 @@ void library(FILE *fp)
 		printf("%s", single_line);
 	}
 }
+/// Remindme command
+void remindme(struct command_t *command)
+{
+
+	char st[BUF_SIZE];
+	char s[2];
+	if (command->args[0] != NULL)
+	{
+		strcpy(st, command->args[0]);
+		strcpy(s, ".");
+		if (strstr(st, s) != NULL && command->args[1] != NULL)
+		{
+			char *tok = strtok(st, s);
+			char min[3];
+			char hour[3];
+
+			int i;
+			char commd[command->arg_count * BUF_SIZE];
+
+			strcpy(commd, command->args[1]);
+
+			strcat(commd, " ");
+
+			for (i = 2; i < command->arg_count; i++)
+			{
+
+				strcat(commd, command->args[i]);
+				strcat(commd, " ");
+			}
+			strcpy(hour, tok);
+
+			tok = strtok(NULL, s);
+
+			strcpy(min, tok);
+			char p[100];
+			strcpy(p, "{ echo '");
+			strcat(p, tok);
+			strcat(p, " ");
+			strcat(p, hour);
+			strcat(p, " * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send ");
+			strcat(p, commd);
+			strcat(p, "';}| crontab - ");
+			system(p);
+		}
+		else
+			printf("Please schedule a time appropriately.\n");
+	}
+}
 
 /// New Custom command for a local ping sweep to check which local devices are up:
 
-int ping_sweep(const char *subnet, const char *range_start, const char *range_end) 
-{	
-	/// AUTHOR: Furkan Özgültekin 
+int ping_sweep(const char *subnet, const char *range_start, const char *range_end)
+{
+	/// AUTHOR: Furkan Özgültekin
 
 	int stat;
 
@@ -890,7 +968,7 @@ int ping_sweep(const char *subnet, const char *range_start, const char *range_en
 		// create child processes and then execute ping for the interval between start and end using for
 		for (i; i <= end; i++)
 		{
-			
+
 			// count is also the digit count of the said current_index so there is an if else statement to change it accordingly
 			int count = 1;
 			if (i >= 10)
@@ -917,7 +995,7 @@ int ping_sweep(const char *subnet, const char *range_start, const char *range_en
 			// each ping becomes a child process of their own
 			pid_t pid = fork();
 			if (pid == 0)
-			{ 
+			{
 				execv(file_path, args);
 			}
 			else
