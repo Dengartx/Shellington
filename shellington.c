@@ -10,6 +10,7 @@
 //For use in short function
 #define BUF_SIZE 250
 
+// w will store the first directory where the out file is run. we keep the full path to open and close folders on any device.
 char w[BUF_SIZE];
 
 const char *sysname = "shellington";
@@ -610,6 +611,11 @@ int shortcut(struct command_t *command)
 
 			char *token = malloc(sizeof(alias) + sizeof(pwd) + 2);
 			strcpy(token, alias);
+			if(strcmp(alias, "DNE") == 0){
+				// Since DNE is only wanted to return when that alias is not found.
+				printf("Cannot set DNE as an alias\n");
+				return SUCCESS;
+			}
 			strcat(token, delim);
 			strcat(token, pwd);
 
@@ -673,6 +679,7 @@ const char *search_short(FILE *fp, const char *alias)
 		}
 	}
 
+	// only return this when the shortcut is not found (recommended to not set DNE as an alias)
 	return "DNE";
 }
 
@@ -692,7 +699,7 @@ void jump_to(const char *loc, struct command_t *command)
 	cdcomm->arg_count = 2;
 	cdcomm->background = command->background;
 	cdcomm->next = NULL;
-
+	// create a cd command since the jumping action is basically a cd command
 	process_command(cdcomm);
 }
 // Added code for bookmark func
