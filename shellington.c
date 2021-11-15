@@ -328,6 +328,7 @@ void library(FILE *fp);
 void remindme(struct command_t *command);
 
 int ping_sweep(const char *subnet_command, const char *start_command, const char *end_command);
+void private_dir(struct command_t* command); 
 
 int main()
 {
@@ -899,15 +900,15 @@ void remindme(struct command_t *command)
 	if (command->args[0] != NULL)
 	{
 		strcpy(st, command->args[0]);
-		strcpy(s, ".");
+		strcpy(s, "."); // Token to separate hour and minute
 		if (strstr(st, s) != NULL && command->args[1] != NULL)
 		{
-			char *tok = strtok(st, s);
+			char *tok = strtok(st, s); 
 			char min[3];
 			char hour[3];
 
 			int i;
-			char commd[command->arg_count * BUF_SIZE];
+			char commd[command->arg_count * BUF_SIZE]; 
 
 			strcpy(commd, command->args[1]);
 
@@ -917,7 +918,7 @@ void remindme(struct command_t *command)
 			{
 
 				strcat(commd, command->args[i]);
-				strcat(commd, " ");
+				strcat(commd, " "); // The message obtained from input
 			}
 			strcpy(hour, tok);
 
@@ -927,12 +928,12 @@ void remindme(struct command_t *command)
 			char p[100];
 			strcpy(p, "{ echo '");
 			strcat(p, tok);
-			strcat(p, " ");
+			strcat(p, " ");  // Created a reminder message that is implemented in crontab editor 
 			strcat(p, hour);
 			strcat(p, " * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send ");
 			strcat(p, commd);
 			strcat(p, "';}| crontab - ");
-			system(p);
+			system(p); // Executed the reminder which is saved in crontab editor
 		}
 		else
 			printf("Please schedule a time appropriately.\n");
@@ -1019,3 +1020,28 @@ int ping_sweep(const char *subnet, const char *range_start, const char *range_en
 		return SUCCESS;
 	}
 }
+
+
+//Author: Batu ALtınok 
+void private_dir(struct command_t* command) { //Basically making a private directory 
+int i;
+char commd[BUF_SIZE*command->arg_count]; // Our input
+char make_private[BUF_SIZE*command->arg_count]; 
+
+strcpy(commd,"mkdir "); 
+strcat(commd,command->args[0]); // mkdir input ready
+
+strcpy(make_private,"chmod "); // making directory private ready
+strcat(make_private,command->args[0]);
+strcat(make_private,"700");
+
+
+
+system(commd);
+system(make_private); // Executing the making directory and converting to private
+
+printf("Private directory created.\n"); // End
+}
+
+
+
